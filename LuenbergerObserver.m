@@ -4,9 +4,9 @@ close all
 
 %% Loading parameters
 
-cd('..//Parameters');
+% cd('..//Parameters');
 load('params_aaa_elb.mat')
-cd('..//FRICTION_v2');
+% cd('..//FRICTION_v2');
 
 L2 = 500;
 L3 = -800;
@@ -28,35 +28,59 @@ u10_sine = 3000; %Operating point for sine
 sine_f = 0.5; % [Hz]
 sine_A = 1000;
 
+
+SIM_TIME = 12;
+STEP_SIZE = Ts/10;
 %% Tests
 
 % Test 1
-L2 = 500;
-L3 = -800;
-
+%L2 = 500;
+%L3 = -800;
+%RMSE = 0.0090
 
 % Test 2
+%L2 = 5000;
+%L3 = -8000;
+%RMSE = 0.0091
+
+% Test 3
+%L2 = 50000;
+%L3 = -80000;
+%RMSE = 0.0090
 
 %% Loading signals
+load('test1_fricest.mat');
 
-runIDs = Simulink.sdi.getAllRunIDs; % Get all run IDs
-latestRunID = runIDs(end); % Get the latest run
-latestRun = Simulink.sdi.getRun(latestRunID); % Get the run object
+v1_time_series = get(data,'v1');
+v1_hat_time_series = get(data,'v1_hat');
+F_hat_time_series = get(data,'F_hat');
 
-numSignals = latestRun.SignalCount; % Get the number of signals
+time = v1_time_series.Values.Time;
+v1 = v1_time_series.Values.Data;
+v1_hat = v1_hat_time_series.Values.Data;
+F_hat = F_hat_time_series.Values.Data;
 
-for i = 1:numSignals
-    sig = latestRun.getSignalByIndex(i); % Get each signal
-    signalName = sig.Name; % Get the signal name
-    
-    % Extract time and data values
-    time = sig.TimeValues;
-    values = sig.DataValues;
+%% Plotting friction vs velocity
 
-    % Assign to workspace with the signal name (replacing spaces with underscores)
-    varName = matlab.lang.makeValidName(signalName);
-    assignin('base', varName, [time values]);
+% Median filtering
+medfiltord = 40;
+F_hat_filt = medfilt1(F_hat,medfiltord);
+v1_filt = medfilt1(v1,medfiltord);
 
-    % Display signal names
-    fprintf('Signal %d: %s\n', i, signalName);
-end
+figure(2);
+grid on;
+plot(v1_filt,F_hat_filt,'black.','MarkerSize',3);
+xlabel('Velocity [m/s]','Interpreter','latex');
+ylabel('Estimated Friction [N]','Interpreter','latex');
+xlim([-0.05 0.05]);
+ylim([-0.2 0.2]);
+hold off;
+
+%% quick sanity check !
+
+figure(1);
+plot(time,[v1,v1_hat]);
+e_v1 = v1-v1_hat;
+loss = e_v1 .^ 2;
+acc_loss = sum(loss);
+rmse = sqrt(1/length(time) * acc_loss);
